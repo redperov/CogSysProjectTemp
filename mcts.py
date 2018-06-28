@@ -7,12 +7,12 @@ from random import choice
 
 NUM_OF_SIMULATIONS = 3
 C = 1.4
-MAX_ROLLOUT_DEPTH = 10
+MAX_ROLLOUT_DEPTH = 100
 
 # Rewards values
 DEAD_END_REWARD = -1
 ACTIONS_LEFT_REWARD = 0
-GOAL_COMPLETED_REWARD = 10
+GOAL_COMPLETED_REWARD = 100
 
 valid_actions_getter = None
 sim_services = None

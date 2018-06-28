@@ -19,9 +19,6 @@ class MyExecutor(Executor):
         self._action_max_tries = action_max_tries
         self._action_retry_counter = 0
 
-        # TODO maybe change to a numpy array to increase the speed.
-        # self._black_list = []
-
     def initialize(self, services):
         self.services = services
 
@@ -44,29 +41,34 @@ class MyExecutor(Executor):
         # Get the current state.
         curr_state = self.services.perception.get_state()
 
-        # # Check if the current state already appears in the black list.
-        # if curr_state not in self._black_list:
-        #
-        #     # Add the current state to the black list.
-        #     self._black_list.append(curr_state)
-
         # Check if there is only one valid action.
         if len(valid_actions) == 1:
             self._prev_state = curr_state
+            self._prev_action = valid_actions[0]
             return valid_actions[0]
 
-        # Check if the previous action failed, if it did, check if it can be retried.
-        if curr_state == self._prev_state and self._action_retry_counter < self._action_max_tries:
-            self._action_retry_counter += 1
-            return self._prev_action
+        # Check if the previous action failed.
+        if curr_state == self._prev_state:
+
+            # Check if the action can be retried.
+            if self._action_retry_counter < self._action_max_tries:
+                self._action_retry_counter += 1
+                return self._prev_action
+            else:
+                # If an action failed more than the limit, remove it from the valid actions list.
+                valid_actions.remove(self._prev_action)
+
+                # Check if only one valid action was left.
+                if len(valid_actions) == 1:
+                    self._prev_action = valid_actions[0]
+                    return valid_actions[0]
 
         # Use the MCTS algorithm to choose an action.
-        # TODO looks like the UCT encounters division by zero, fix it
         action = monte_carlo_tree_search(curr_state, valid_actions, self._prev_state)
 
+        self._prev_state = curr_state
         self._prev_action = action
         self._action_retry_counter = 0
-        self._prev_state = curr_state
 
         return action
 
