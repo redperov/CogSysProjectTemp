@@ -7,12 +7,12 @@ from random import choice
 
 NUM_OF_SIMULATIONS = 3
 C = 1.4
-MAX_ROLLOUT_DEPTH = 100
+MAX_ROLLOUT_DEPTH = 50
 
 # Rewards values
 DEAD_END_REWARD = -1
-ACTIONS_LEFT_REWARD = 0
-GOAL_COMPLETED_REWARD = 100
+ACTIONS_LEFT_REWARD = 0.1
+GOAL_COMPLETED_REWARD = 10
 
 valid_actions_getter = None
 sim_services = None
@@ -135,6 +135,7 @@ def monte_carlo_tree_search(pddl_state, valid_actions, prev_state):
 
     root = Node(pddl_state, None, valid_actions=valid_actions)
 
+    # TODO Handle the case when only 3 simulations is not enough, like when there are many children
     for i in xrange(NUM_OF_SIMULATIONS):
         leaf = traverse(root)  # leaf = unvisited node
         simulation_result = rollout(leaf)
@@ -217,9 +218,17 @@ def is_terminal(node):
     if is_reached_a_goal_state(node.get_state()):
         return True
 
+    children = node.get_children()
+
     # Check if there aren't any child states to move to.
-    if len(node.get_children()) == 0:
+    if len(children) == 0:
         return True
+
+    if len(children) == 1:
+
+        # Check if the only state it can reach is the parent state.
+        if node.get_parent().get_state() == children[0].get_state():
+            return True
 
     return False
 
@@ -241,7 +250,20 @@ def is_reached_a_goal_state(state):
 
 
 def rollout_policy(node):
-    return choice(node.get_children())
+    # TODO make sure that actions which lead to the old state are not chosen
+    children = node.get_children()
+
+    if len(children) == 1:
+        return children[0]
+
+    parent_state = node.get_parent().get_state()
+    filtered_children = []
+
+    for child in children:
+        if parent_state != child.get_state():
+            filtered_children.append(child)
+
+    return choice(filtered_children)
 
 
 def get_result(node):
