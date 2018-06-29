@@ -7,6 +7,7 @@ from random import choice, sample
 
 C = 1.4
 MAX_ROLLOUT_DEPTH = 50
+MAX_ACTIONS = 100
 
 # Rewards values
 DEAD_END_REWARD = -10
@@ -334,7 +335,7 @@ def sample_actions(valid_actions):
 
     length = len(valid_actions)
 
-    if length < 50:
+    if length < MAX_ACTIONS:
         return valid_actions
 
     sample_length = int(0.5 * length)

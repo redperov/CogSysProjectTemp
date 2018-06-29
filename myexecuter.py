@@ -3,7 +3,7 @@ from pddlsim.executors.executor import Executor
 from pddlsim.planner import local
 import sys
 from mcts import monte_carlo_tree_search, init_helper_objects, sample_actions
-MAX_SIMULATIONS = 50
+MAX_SIMULATIONS = 20
 
 
 class MyExecutor(Executor):
