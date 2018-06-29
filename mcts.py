@@ -3,14 +3,13 @@ Implementation of the Monte Carlo Tree Search algorithm.
 """
 import numpy as np
 from valid_action import PythonValidActions
-from random import choice
+from random import choice, sample
 
-NUM_OF_SIMULATIONS = 3
 C = 1.4
 MAX_ROLLOUT_DEPTH = 50
 
 # Rewards values
-DEAD_END_REWARD = -1
+DEAD_END_REWARD = -10
 ACTIONS_LEFT_REWARD = 0.1
 GOAL_COMPLETED_REWARD = 10
 
@@ -20,17 +19,6 @@ sim_simulations_max_tries = 0
 sim_max_simulation_depth = 0
 sim_action_max_tries = 0
 sim_prev_state = None
-# sim_black_list = None
-
-
-# class State(object):
-#
-#     def __init__(self, str_state):
-#         """
-#         Constructor.
-#         :param str_state: string pddl representation of the state.
-#         """
-#         self._str_state = str_state
 
 
 class Node(object):
@@ -38,8 +26,10 @@ class Node(object):
     def __init__(self, str_state, parent, valid_actions=None, applied_action=None):
         """
         Constructor.
-        :param str_state: string pddl representation of the state.
+        :param str_state: string pddl representation of the state
         :param parent: parent state
+        :param valid_actions: valid actions of the given state
+        :param applied_action: the action applied on the given state
         """
         self._state = str_state
         self._parent = parent
@@ -48,15 +38,27 @@ class Node(object):
         self._applied_action = applied_action
         self._visit_count = 0
         self._win_score = 0
+        self._temp = None
 
     def get_state(self):
+        """
+        State getter.
+        :return: state
+        """
         return self._state
 
     def get_parent(self):
+        """
+        Parent state getter.
+        :return: state
+        """
         return self._parent
 
     def get_children(self):
-
+        """
+        Children getter.
+        :return: list of children states
+        """
         # Check if the current state tried to create any children.
         if self._children is None:
             self._children = []
@@ -73,7 +75,6 @@ class Node(object):
                 # Counts the number of times an action failed.
                 counter = 0
 
-                # TODO maybe there is a need for try except here
                 while counter < sim_action_max_tries:
 
                     # Apply the action on the state.
@@ -89,32 +90,59 @@ class Node(object):
                             self._children.append(Node(state, self, applied_action=action))
 
                         break
+                    # else:
+                    #     self._temp = [state, action]
+
+            # if len(self._children) == 0:
+            #     self._children.append(Node(self._temp[0], self, applied_action=self._temp[1]))
 
         return self._children
 
     def get_visit_count(self):
+        """
+        Visit count getter.
+        :return: int
+        """
         return self._visit_count
 
     def increase_visit_count(self):
+        """
+        Increases the visit count.
+        """
         self._visit_count += 1
 
     def add_win_score(self, score):
+        """
+        Adds a values to the win score.
+        :param score: int
+        """
         self._win_score += score
 
     def get_win_score(self):
+        """
+        Win score getter.
+        :return: int
+        """
         return self._win_score
 
     # def get_all_possible_states(self):
     #     pass
 
     def get_valid_actions(self):
-
+        """
+        Valid actions getter.
+        :return: list of valid actions
+        """
         if self._valid_actions is None:
-            self._valid_actions = valid_actions_getter.get(self._state)
+            self._valid_actions = sample_actions(valid_actions_getter.get(self._state))
 
         return self._valid_actions
 
     def get_applied_action(self):
+        """
+        Applied action getter.
+        :return: action
+        """
         return self._applied_action
 
 
@@ -125,7 +153,6 @@ def init_helper_objects(services, simulations_max_tries, max_simulation_depth, a
     sim_simulations_max_tries = simulations_max_tries
     sim_max_simulation_depth = max_simulation_depth
     sim_action_max_tries = action_max_tries
-    #sim_black_list = black_list
 
 
 def monte_carlo_tree_search(pddl_state, valid_actions, prev_state):
@@ -135,8 +162,7 @@ def monte_carlo_tree_search(pddl_state, valid_actions, prev_state):
 
     root = Node(pddl_state, None, valid_actions=valid_actions)
 
-    # TODO Handle the case when only 3 simulations is not enough, like when there are many children
-    for i in xrange(NUM_OF_SIMULATIONS):
+    for i in xrange(sim_simulations_max_tries):
         leaf = traverse(root)  # leaf = unvisited node
         simulation_result = rollout(leaf)
         back_propagate(leaf, simulation_result)
@@ -182,7 +208,6 @@ def best_uct(node):
         if c.get_visit_count == 0:
             return c
 
-    # TODO maybe avoid doing two separate loops, and combine them to one for better performance speed
     choices_weights = [
         (c.get_win_score() / (c.get_visit_count())) + C * np.sqrt((2 * np.log(node.get_visit_count()) /
                                                                    (c.get_visit_count())))
@@ -192,7 +217,6 @@ def best_uct(node):
 
 
 def pick_unvisited(children):
-    # TODO if using numpy array, change to .size()
     if len(children) == 0:
         return None
 
@@ -250,7 +274,6 @@ def is_reached_a_goal_state(state):
 
 
 def rollout_policy(node):
-    # TODO make sure that actions which lead to the old state are not chosen
     children = node.get_children()
 
     if len(children) == 1:
@@ -267,7 +290,6 @@ def rollout_policy(node):
 
 
 def get_result(node):
-    # TODO maybe if stopped because reached max depth return x and if got to dead end return y?
 
     # Check if reached one of the goals.
     if is_reached_a_goal_state(node.get_state()):
@@ -290,30 +312,13 @@ def back_propagate(node, result):
     if node.get_parent():
 
         # Continue back propagating.
-        # TODO maybe avoid doing recursion.
         back_propagate(node.get_parent(), result)
-
-    # # Check if node is root.
-    # if node.get_parent() is None:
-    #     return
-    #
-    # # Update node's statistics.
-    # update_stats(node, result)
-    #
-    # # Continue back propagating.
-    # back_propagate(node.get_parent(), result)
-
-
-# def update_stats(node, result):
-#     node.increase_visit_count()
-#     node.add_win_score(result)
 
 
 def best_action(node):
 
     children = node.get_children()
 
-    # TODO check if it's possible for the root to not have any children
     if len(children) == 0:
         return None
 
@@ -323,3 +328,23 @@ def best_action(node):
 
     # Return the action which brought to him.
     return child.get_applied_action()
+
+
+def sample_actions(valid_actions):
+
+    length = len(valid_actions)
+
+    if length < 50:
+        return valid_actions
+
+    sample_length = int(0.5 * length)
+    samples = [0] * sample_length
+    indices = sample(range(length), sample_length)
+    counter = 0
+
+    for i in indices:
+        samples[counter] = valid_actions[i]
+        counter += 1
+
+    return samples
+

@@ -2,19 +2,20 @@ from pddlsim.local_simulator import LocalSimulator
 from pddlsim.executors.executor import Executor
 from pddlsim.planner import local
 import sys
-from mcts import monte_carlo_tree_search, init_helper_objects
+from mcts import monte_carlo_tree_search, init_helper_objects, sample_actions
+MAX_SIMULATIONS = 50
 
 
 class MyExecutor(Executor):
     """
-    My Executor.
+    Executor which uses Monte Carlo Tree Search algorithm.
     """
-    def __init__(self, simulations_max_tries, max_simulation_depth, action_max_tries):
+    def __init__(self, min_tries, max_simulation_depth, action_max_tries):
         super(MyExecutor, self).__init__()
         self.services = None
         self._prev_state = None
         self._prev_action = None
-        self._simulations_max_tries = simulations_max_tries
+        self._min_tries = min_tries
         self._max_simulation_depth = max_simulation_depth
         self._action_max_tries = action_max_tries
         self._action_retry_counter = 0
@@ -22,8 +23,11 @@ class MyExecutor(Executor):
     def initialize(self, services):
         self.services = services
 
+        # Set the number of simulations.
+        max_tries = min(MAX_SIMULATIONS, max(self._min_tries, len(self.services.valid_actions.get()) * 2))
+
         # Initialize helper objects for the MCTS algorithm.
-        init_helper_objects(services, simulations_max_tries, max_simulation_depth, action_max_tries)
+        init_helper_objects(services, max_tries, self._max_simulation_depth, self._action_max_tries)
 
     def next_action(self):
 
@@ -32,7 +36,7 @@ class MyExecutor(Executor):
             return None
 
         # Get all the valid actions.
-        valid_actions = self.services.valid_actions.get()
+        valid_actions = sample_actions(self.services.valid_actions.get())
 
         # Check if there are no valid actions to take.
         if len(valid_actions) == 0:
@@ -79,10 +83,10 @@ if __name__ == '__main__':
     problem_path = sys.argv[2]
 
     # Initializing parameters.
-    simulations_max_tries = 3
+    min_tries = 3
     max_simulation_depth = 3
     action_max_tries = 2
 
-    executor = MyExecutor(simulations_max_tries, max_simulation_depth, action_max_tries)
+    executor = MyExecutor(min_tries, max_simulation_depth, action_max_tries)
 
     print LocalSimulator(local).run(domain_path, problem_path, executor)
